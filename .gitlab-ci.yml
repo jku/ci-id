@@ -1,0 +1,10 @@
+image: "rust:latest"
+
+test:cargo:
+  id_tokens:
+    SIGSTORE_ID_TOKEN:
+      aud: sigstore
+  script:
+    - rustc --version && cargo --version  # Print version info for debugging
+    - cargo build
+    - cargo run sigstore
