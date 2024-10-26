@@ -1,5 +1,4 @@
 use std::process::exit;
-
 use clap::Parser;
 use ci_id::{detect_credentials, CIIDError};
 
@@ -11,10 +10,11 @@ struct Cli {
 }
 
 fn main() {
+    env_logger::init();
     let cli = Cli::parse();
 
     match detect_credentials(cli.audience.as_deref()) {
-        Ok(token) => println!("{}", token),
+        Ok(token) => print!("{}", token),
         Err(CIIDError::EnvironmentNotDetected) => println!("No ambient OIDC tokens found"),
         Err(e) => {
             eprintln!("Error: {}", e);
