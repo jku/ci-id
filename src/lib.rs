@@ -12,10 +12,19 @@ pub type Result<T> = std::result::Result<T, CIIDError>;
 pub enum CIIDError{
     EnvironmentNotDetected,
     EnvironmentError,
+    MalformedToken,
 }
 impl fmt::Display for CIIDError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "credential detection failed")
+    }
+}
+
+fn validate_token(token: String) -> Result<String> {
+    // very, very shallow validation: could this be a JWT token?
+    match token.split(".").collect::<Vec<&str>>().len() {
+        3 => Ok(token),
+        _ => Err(CIIDError::MalformedToken)
     }
 }
 
@@ -25,11 +34,10 @@ pub fn detect_credentials(audience: Option<&str>) -> Result<String> {
         GitLab::detect
     ] {
         match detect(audience) {
-            Ok(token) => return Ok(token),
+            Ok(token) => return validate_token(token),
             Err(CIIDError::EnvironmentNotDetected) => {},
             Err(e) => return Err(e)
         }
-
     }
 
     Err(CIIDError::EnvironmentNotDetected)
