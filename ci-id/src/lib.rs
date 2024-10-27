@@ -66,7 +66,6 @@ struct GitHubTokenResponse {
 }
 
 fn detect_github(audience: Option<&str>) -> Result<String> {
-    println!("{:?}", env::var("GITHUB_ACTIONS"));
     if env::var("GITHUB_ACTIONS").is_err() {
         return Err(CIIDError::EnvironmentNotDetected);
     };
