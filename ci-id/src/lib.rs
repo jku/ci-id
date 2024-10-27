@@ -297,7 +297,7 @@ mod tests {
     }
 
     #[test]
-    fn no_environments() {
+    fn detect_credentials_no_environments() {
         run_with_env([("GITLAB_CI", None), ("GITHUB_ACTIONS", None)], || {
             assert_eq!(
                 detect_credentials(None),
@@ -307,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn failure() {
+    fn detect_credentials_failure() {
         // Unexpected failure in any detector leads to detect_credentials failure
         run_with_env([("GITHUB_ACTIONS", Some("1"))], || {
             assert!(matches!(
@@ -318,7 +318,7 @@ mod tests {
     }
 
     #[test]
-    fn malformed_token() {
+    fn detect_credentials_malformed_token() {
         let token = "token value";
         run_with_env(
             [("GITLAB_CI", Some("1")), ("ID_TOKEN", Some(token))],
@@ -329,7 +329,7 @@ mod tests {
     }
 
     #[test]
-    fn success() {
+    fn detect_credentials_success() {
         run_with_env(
             [("GITLAB_CI", Some("1")), ("ID_TOKEN", Some(TOKEN))],
             || {

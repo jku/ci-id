@@ -11,15 +11,27 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
     permissions:
       id-token: write
       contents: read
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
     - name: Build
       run: cargo build
     - name: Run tests
+      run: cargo test --all
+    - name: Test run binary
       run: RUST_LOG=debug cargo run sigstore
+
+  lint:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: fmt
+      run: cargo fmt --check --all
+    - name: clippy
+      run: cargo clippy --all -- -D warnings
