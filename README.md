@@ -1,6 +1,6 @@
 ## ci-id -- Ambient credentials detection for CI systems
 
-ci-id provides easy access to ambient OIDC credentials in CI systems.
+`ci-id` provides easy access to ambient OIDC credentials in CI systems.
 
 
 ```
@@ -13,11 +13,13 @@ fn main() -> Result<(), CIIDError>  {
 }
 ```
 
-There is a simple CLI application: `ci-id` prints the token in stdout. 
+A simple CLI application is included in the `ci-id-bin` crate: `ci-id [<AUDIENCE>]` prints the token in stdout.
+
+ci-id is based on [id](https://github.com/di/id), a similar Python project.
 
 ### Supported environments
 
-
+Only GitHub and GitLab are supported at the moment but more implementations are welcome.
 
 #### GitHub Actions
 
@@ -42,3 +44,6 @@ that token name is either
       aud: my-audience
 ```
 
+### License
+
+`ci-id` is licensed under the Apache 2.0 License.

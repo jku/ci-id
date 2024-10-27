@@ -3,13 +3,17 @@
 // * less dependencies?
 // * build library only with library deps -- maybe separate into two crates in a workspace?
 
-use std::{collections::HashMap, env, fmt};
-use serde::Deserialize;
 use regex::Regex;
+use serde::Deserialize;
+use std::{collections::HashMap, env, fmt};
 pub type Result<T> = std::result::Result<T, CIIDError>;
 
-#[derive(Debug, Clone)]
-pub enum CIIDError{
+#[cfg(test)]
+#[macro_use]
+extern crate lazy_static;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CIIDError {
     EnvironmentNotDetected,
     EnvironmentError(String),
     MalformedToken,
@@ -25,12 +29,11 @@ impl fmt::Display for CIIDError {
 
 type DetectFn = fn(Option<&str>) -> Result<String>;
 
-
 fn validate_token(token: String) -> Result<String> {
     // very, very shallow validation: could this be a JWT token?
     match token.split(".").collect::<Vec<&str>>().len() {
         3 => Ok(token),
-        _ => Err(CIIDError::MalformedToken)
+        _ => Err(CIIDError::MalformedToken),
     }
 }
 
@@ -43,12 +46,12 @@ pub fn detect_credentials(audience: Option<&str>) -> Result<String> {
             Ok(token) => {
                 let token = validate_token(token)?;
                 log::debug!("{}: Token found", name);
-                return Ok(token)
-            },
+                return Ok(token);
+            }
             Err(CIIDError::EnvironmentNotDetected) => {
                 log::debug!("{}: Environment not detected", name);
-            },
-            Err(e) => return Err(e)
+            }
+            Err(e) => return Err(e),
         }
     }
 
@@ -63,15 +66,20 @@ struct GitHubTokenResponse {
 }
 
 fn detect_github(audience: Option<&str>) -> Result<String> {
+    println!("{:?}", env::var("GITHUB_ACTIONS"));
     if let Err(_) = env::var("GITHUB_ACTIONS") {
         return Err(CIIDError::EnvironmentNotDetected);
     };
 
     let Ok(token_token) = env::var("ACTIONS_ID_TOKEN_REQUEST_TOKEN") else {
-        return Err(CIIDError::EnvironmentError("GitHub Actions: ACTIONS_ID_TOKEN_REQUEST_TOKEN is not set".into()));
+        return Err(CIIDError::EnvironmentError(
+            "GitHub Actions: ACTIONS_ID_TOKEN_REQUEST_TOKEN is not set".into(),
+        ));
     };
     let Ok(token_url) = env::var("ACTIONS_ID_TOKEN_REQUEST_URL") else {
-        return Err(CIIDError::EnvironmentError("GitHub Actions: ACTIONS_ID_TOKEN_REQUEST_URL is not set".into()));
+        return Err(CIIDError::EnvironmentError(
+            "GitHub Actions: ACTIONS_ID_TOKEN_REQUEST_URL is not set".into(),
+        ));
     };
     let mut params = HashMap::new();
     if let Some(aud) = audience {
@@ -87,18 +95,22 @@ fn detect_github(audience: Option<&str>) -> Result<String> {
             format!("bearer {}", token_token),
         )
         .query(&params)
-        .send() {
+        .send()
+    {
         Ok(response) => response,
         Err(e) => {
-            return Err(CIIDError::EnvironmentError(format!("GitHub Actions: Token request failed: {}", e)))
+            return Err(CIIDError::EnvironmentError(format!(
+                "GitHub Actions: Token request failed: {}",
+                e
+            )))
         }
-
     };
     match http_response.json::<GitHubTokenResponse>() {
         Ok(token_response) => Ok(token_response.value),
-        Err(e) => {
-            Err(CIIDError::EnvironmentError(format!("GitHub Actions: Failed to parse token reponse: {}", e)))
-        }
+        Err(e) => Err(CIIDError::EnvironmentError(format!(
+            "GitHub Actions: Failed to parse token reponse: {}",
+            e
+        ))),
     }
 }
 
@@ -122,6 +134,207 @@ fn detect_gitlab(audience: Option<&str>) -> Result<String> {
     log::debug!("GitLab Pipelines: Looking for token in {}", var_name);
     match env::var(&var_name) {
         Ok(token) => Ok(token),
-        Err(_) => Err(CIIDError::EnvironmentError(format!("GitLab Pipelines: {} is not set", var_name))),
+        Err(_) => Err(CIIDError::EnvironmentError(format!(
+            "GitLab Pipelines: {} is not set",
+            var_name
+        ))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::sync::{Mutex, MutexGuard};
+
+    const TOKEN: &str = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjMxNjA2OGMzM2ZhMjg2OTZhZmI5YzM5YWI2OTMxMjY1ZDk0Y2I3NTUifQ.eyJpc3MiOiJodHRwczovL29hdXRoMi5zaWdzdG9yZS5kZXYvYXV0aCIsInN1YiI6IkNnVXpNVGc0T1JJbWFIUjBjSE02SlRKR0pUSkdaMmwwYUhWaUxtTnZiU1V5Um14dloybHVKVEpHYjJGMWRHZyIsImF1ZCI6InNpZ3N0b3JlIiwiZXhwIjoxNzI5NTEyOTMwLCJpYXQiOjE3Mjk1MTI4NzAsIm5vbmNlIjoiNTI3NjM3Y2UtN2Q2MS00MDA5LThkM2EtNGNjZGM3OGJiZDg1IiwiYXRfaGFzaCI6IktmMUNPTXB5TVJDTkdzWWp1QXczclEiLCJlbWFpbCI6ImprdUBnb3RvLmZpIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZlZGVyYXRlZF9jbGFpbXMiOnsiY29ubmVjdG9yX2lkIjoiaHR0cHM6Ly9naXRodWIuY29tL2xvZ2luL29hdXRoIiwidXNlcl9pZCI6IjMxODg5In19.s27uZ3vpIzRS4eWdC3pM0FSsYkHNvScQoii_TcSRVZhtrcPAbA4D95Pw_R_UB-qRquMK1BHepKmeN1b1-CQ00jiFZgUOf9sDLC3Hy3oQejGJsYKb-7oeHs7amLz3SBzPwDwVd09e-7Yu1x9YV5k6aezqruLLt42C_kyOTsHeCIWWMEVmGp32105Jkj8YT5uEYXS-aOEvQFvAYsDfKgGuiJtGybUycVcJEfqyWI3cami7fkjU5PcCx8oFyP2E7YNRw4UeNWCTn7WFtL2onrgDm0oa2AqF3gtH4Q-9ByksVq3y6xQdoLj1ydzWcoCzsF43oZ6O6DkLmWk5fu3FxNyewg";
+
+    // Mutex for all tests that modify environment variables
+    lazy_static! {
+        static ref ENV_MUTEX: Mutex<()> = Mutex::new(());
+    }
+
+    struct SavedEnv<'a> {
+        old_env: HashMap<&'a str, Option<String>>,
+        _guard: MutexGuard<'a, ()>,
+    }
+
+    impl<'a> SavedEnv<'a> {
+        fn new<T>(test_env: T) -> Self
+        where
+            T: IntoIterator<Item = (&'a str, Option<&'a str>)>,
+        {
+            // Store current env values, set the test values as the environment
+            let guard = ENV_MUTEX.lock().unwrap();
+            let mut old_env = HashMap::new();
+            for (key, val) in test_env {
+                let old_val = env::var(key).ok();
+                old_env.insert(key, old_val);
+                match val {
+                    Some(val) => env::set_var(key, val),
+                    None => env::remove_var(key),
+                }
+            }
+
+            Self {
+                old_env,
+                _guard: guard,
+            }
+        }
+    }
+
+    impl<'a> Drop for SavedEnv<'a> {
+        fn drop(&mut self) {
+            for (key, val) in self.old_env.drain() {
+                match val {
+                    Some(val) => env::set_var(key, val),
+                    None => env::remove_var(key),
+                }
+            }
+        }
+    }
+
+    fn run_with_env<'a, T, F>(test_env: T, f: F)
+    where
+        F: Fn(),
+        T: IntoIterator<Item = (&'a str, Option<&'a str>)>,
+    {
+        // Prepares env variables according to `env`, runs the function, then returns environment
+        // to old values
+        let saved_env = SavedEnv::new(test_env);
+        f();
+        drop(saved_env);
+    }
+
+    #[test]
+    fn github_not_detected() {
+        let env = [("GITHUB_ACTIONS", None)];
+        run_with_env(env, || {
+            assert_eq!(detect_github(None), Err(CIIDError::EnvironmentNotDetected));
+        });
+    }
+
+    #[test]
+    fn github_env_failure() {
+        // Missing env variables
+        let env = [("GITHUB_ACTIONS", Some("1"))];
+        run_with_env(env, || {
+            assert!(matches!(
+                detect_github(None).unwrap_err(),
+                CIIDError::EnvironmentError(_)
+            ));
+        });
+
+        let env = [
+            ("GITHUB_ACTIONS", Some("1")),
+            ("ACTIONS_ID_TOKEN_REQUEST_TOKEN", Some("token")),
+        ];
+        run_with_env(env, || {
+            assert!(matches!(
+                detect_github(None).unwrap_err(),
+                CIIDError::EnvironmentError(_)
+            ));
+        });
+
+        // request fails
+        let env = [
+            ("GITHUB_ACTIONS", Some("1")),
+            ("ACTIONS_ID_TOKEN_REQUEST_TOKEN", Some("token")),
+            ("ACTIONS_ID_TOKEN_REQUEST_URL", Some("http://invalid")),
+        ];
+        run_with_env(env, || {
+            assert_eq!(detect_github(None).unwrap_err(), CIIDError::EnvironmentError("GitHub Actions: Token request failed: error sending request for url (http://invalid/)".into()));
+        });
+    }
+
+    // TODO This requires mocking reqwest response
+    // fn github_success() { }
+
+    #[test]
+    fn gitlab_not_detected() {
+        run_with_env([("GITLAB_CI", None)], || {
+            assert_eq!(detect_gitlab(None), Err(CIIDError::EnvironmentNotDetected));
+        });
+    }
+
+    #[test]
+    fn gitlab_env_failure() {
+        // Missing token variable for default audience
+        run_with_env([("GITLAB_CI", Some("1")), ("ID_TOKEN", None)], || {
+            assert!(matches!(
+                detect_gitlab(None).unwrap_err(),
+                CIIDError::EnvironmentError(_)
+            ));
+        });
+
+        // Missing token variable for non-default audience
+        run_with_env(
+            [("GITLAB_CI", Some("1")), ("MY_AUD_ID_TOKEN", None)],
+            || {
+                assert!(matches!(
+                    detect_gitlab(Some("my-aud")).unwrap_err(),
+                    CIIDError::EnvironmentError(_)
+                ));
+            },
+        );
+    }
+
+    #[test]
+    fn gitlab_success() {
+        run_with_env(
+            [("GITLAB_CI", Some("1")), ("ID_TOKEN", Some(TOKEN))],
+            || {
+                assert_eq!(detect_gitlab(None), Ok(TOKEN.into()));
+            },
+        );
+
+        run_with_env(
+            [("GITLAB_CI", Some("1")), ("MY_AUD_ID_TOKEN", Some(TOKEN))],
+            || {
+                assert_eq!(detect_gitlab(Some("my-aud")), Ok(TOKEN.into()));
+            },
+        );
+    }
+
+    #[test]
+    fn no_environments() {
+        run_with_env([("GITLAB_CI", None), ("GITHUB_ACTIONS", None)], || {
+            assert_eq!(
+                detect_credentials(None),
+                Err(CIIDError::EnvironmentNotDetected)
+            );
+        });
+    }
+
+    #[test]
+    fn failure() {
+        // Unexpected failure in any detector leads to detect_credentials failure
+        run_with_env([("GITHUB_ACTIONS", Some("1"))], || {
+            assert!(matches!(
+                detect_credentials(None).unwrap_err(),
+                CIIDError::EnvironmentError(_)
+            ));
+        });
+    }
+
+    #[test]
+    fn malformed_token() {
+        let token = "token value";
+        run_with_env(
+            [("GITLAB_CI", Some("1")), ("ID_TOKEN", Some(token))],
+            || {
+                assert_eq!(detect_credentials(None), Err(CIIDError::MalformedToken));
+            },
+        );
+    }
+
+    #[test]
+    fn success() {
+        run_with_env(
+            [("GITLAB_CI", Some("1")), ("ID_TOKEN", Some(TOKEN))],
+            || {
+                assert_eq!(detect_credentials(None), Ok(TOKEN.into()));
+            },
+        );
     }
 }

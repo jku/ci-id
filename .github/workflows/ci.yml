@@ -22,4 +22,4 @@ jobs:
     - name: Build
       run: cargo build
     - name: Run tests
-      run: cargo run sigstore
+      run: RUST_LOG=debug cargo run sigstore
