@@ -21,7 +21,7 @@ ci-id is based on [id](https://github.com/di/id), a similar Python project.
 
 ### Supported environments
 
-Only GitHub and GitLab are supported at the moment but more implementations are welcome.
+GitHub Actions and GitLab Pipelines are supported at the moment: more implementations are welcome.
 
 #### GitHub Actions
 
