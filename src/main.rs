@@ -1,6 +1,6 @@
-use std::process::exit;
-use clap::Parser;
 use ci_id::{detect_credentials, CIIDError};
+use clap::Parser;
+use std::process::exit;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]

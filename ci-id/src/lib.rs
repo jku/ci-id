@@ -67,7 +67,7 @@ struct GitHubTokenResponse {
 
 fn detect_github(audience: Option<&str>) -> Result<String> {
     println!("{:?}", env::var("GITHUB_ACTIONS"));
-    if let Err(_) = env::var("GITHUB_ACTIONS") {
+    if env::var("GITHUB_ACTIONS").is_err() {
         return Err(CIIDError::EnvironmentNotDetected);
     };
 
@@ -119,7 +119,7 @@ fn detect_gitlab(audience: Option<&str>) -> Result<String> {
     // * "ID_TOKEN" if no audience is argument is used or
     // * "<AUDIENCE>_ID_TOKEN" where <AUDIENCE> is the audience string.
 
-    if let Err(_) = env::var("GITLAB_CI") {
+    if env::var("GITLAB_CI").is_err() {
         return Err(CIIDError::EnvironmentNotDetected);
     };
 
