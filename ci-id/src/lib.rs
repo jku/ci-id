@@ -164,8 +164,13 @@ mod tests {
         where
             T: IntoIterator<Item = (&'a str, Option<&'a str>)>,
         {
+            // Tests can panic: assume our lock is still fine
+            let guard = match ENV_MUTEX.lock() {
+                Ok(guard) => guard,
+                Err(poison) => poison.into_inner(),
+            };
+
             // Store current env values, set the test values as the environment
-            let guard = ENV_MUTEX.lock().unwrap();
             let mut old_env = HashMap::new();
             for (key, val) in test_env {
                 let old_val = env::var(key).ok();
@@ -208,8 +213,7 @@ mod tests {
 
     #[test]
     fn github_not_detected() {
-        let env = [("GITHUB_ACTIONS", None)];
-        run_with_env(env, || {
+        run_with_env([("GITHUB_ACTIONS", None)], || {
             assert_eq!(detect_github(None), Err(CIIDError::EnvironmentNotDetected));
         });
     }
@@ -217,34 +221,46 @@ mod tests {
     #[test]
     fn github_env_failure() {
         // Missing env variables
-        let env = [("GITHUB_ACTIONS", Some("1"))];
-        run_with_env(env, || {
-            assert!(matches!(
-                detect_github(None).unwrap_err(),
-                CIIDError::EnvironmentError(_)
-            ));
-        });
-
-        let env = [
-            ("GITHUB_ACTIONS", Some("1")),
-            ("ACTIONS_ID_TOKEN_REQUEST_TOKEN", Some("token")),
-        ];
-        run_with_env(env, || {
-            assert!(matches!(
-                detect_github(None).unwrap_err(),
-                CIIDError::EnvironmentError(_)
-            ));
-        });
+        run_with_env(
+            [
+                ("GITHUB_ACTIONS", Some("1")),
+                ("ACTIONS_ID_TOKEN_REQUEST_TOKEN", None),
+            ],
+            || {
+                assert!(matches!(
+                    detect_github(None).unwrap_err(),
+                    CIIDError::EnvironmentError(_)
+                ));
+            },
+        );
+        run_with_env(
+            [
+                ("GITHUB_ACTIONS", Some("1")),
+                ("ACTIONS_ID_TOKEN_REQUEST_TOKEN", Some("token")),
+                ("ACTIONS_ID_TOKEN_REQUEST_URL", None),
+            ],
+            || {
+                assert!(matches!(
+                    detect_github(None).unwrap_err(),
+                    CIIDError::EnvironmentError(_)
+                ));
+            },
+        );
 
         // request fails
-        let env = [
-            ("GITHUB_ACTIONS", Some("1")),
-            ("ACTIONS_ID_TOKEN_REQUEST_TOKEN", Some("token")),
-            ("ACTIONS_ID_TOKEN_REQUEST_URL", Some("http://invalid")),
-        ];
-        run_with_env(env, || {
-            assert_eq!(detect_github(None).unwrap_err(), CIIDError::EnvironmentError("GitHub Actions: Token request failed: error sending request for url (http://invalid/)".into()));
-        });
+        run_with_env(
+            [
+                ("GITHUB_ACTIONS", Some("1")),
+                ("ACTIONS_ID_TOKEN_REQUEST_TOKEN", Some("token")),
+                ("ACTIONS_ID_TOKEN_REQUEST_URL", Some("http://invalid")),
+            ],
+            || {
+                assert_eq!(
+                    detect_github(None).unwrap_err(),
+                    CIIDError::EnvironmentError("GitHub Actions: Token request failed: error sending request for url (http://invalid/)".into())
+                );
+            },
+        );
     }
 
     // TODO This requires mocking reqwest response
@@ -308,20 +324,31 @@ mod tests {
 
     #[test]
     fn detect_credentials_failure() {
-        // Unexpected failure in any detector leads to detect_credentials failure
-        run_with_env([("GITHUB_ACTIONS", Some("1"))], || {
-            assert!(matches!(
-                detect_credentials(None).unwrap_err(),
-                CIIDError::EnvironmentError(_)
-            ));
-        });
+        // Unexpected failure in any detector leads to detect_credentials failure.
+        run_with_env(
+            [
+                ("GITHUB_ACTIONS", Some("1")),
+                ("ACTIONS_ID_TOKEN_REQUEST_TOKEN", None),
+            ],
+            || {
+                assert!(matches!(
+                    detect_credentials(None).unwrap_err(),
+                    CIIDError::EnvironmentError(_)
+                ));
+            },
+        );
     }
 
     #[test]
     fn detect_credentials_malformed_token() {
         let token = "token value";
+        // need to disable GitHub, otherwise we get a "false" positive on CI...
         run_with_env(
-            [("GITLAB_CI", Some("1")), ("ID_TOKEN", Some(token))],
+            [
+                ("GITHUB_ACTIONS", None),
+                ("GITLAB_CI", Some("1")),
+                ("ID_TOKEN", Some(token)),
+            ],
             || {
                 assert_eq!(detect_credentials(None), Err(CIIDError::MalformedToken));
             },
@@ -330,10 +357,26 @@ mod tests {
 
     #[test]
     fn detect_credentials_success() {
+        // need to disable GitHub, otherwise we get a "false" positive on CI...
         run_with_env(
-            [("GITLAB_CI", Some("1")), ("ID_TOKEN", Some(TOKEN))],
+            [
+                ("GITHUB_ACTIONS", None),
+                ("GITLAB_CI", Some("1")),
+                ("ID_TOKEN", Some(TOKEN)),
+            ],
             || {
                 assert_eq!(detect_credentials(None), Ok(TOKEN.into()));
+            },
+        );
+
+        run_with_env(
+            [
+                ("GITHUB_ACTIONS", None),
+                ("GITLAB_CI", Some("1")),
+                ("MY_AUD_ID_TOKEN", Some(TOKEN)),
+            ],
+            || {
+                assert_eq!(detect_credentials(Some("my-aud")), Ok(TOKEN.into()));
             },
         );
     }
