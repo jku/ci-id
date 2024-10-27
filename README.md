@@ -5,7 +5,7 @@
 `ci-id` provides easy access to ambient OIDC credentials in CI systems.
 
 
-```
+```rust
 use ci_id::{detect_credentials, CIIDError};
 
 fn main() -> Result<(), CIIDError>  {
@@ -27,7 +27,7 @@ Only GitHub and GitLab are supported at the moment but more implementations are 
 
 Workflow must be given the permission to use the workflow identity: 
 
-```
+```yaml
 permissions:
     id-token: write
 ```
@@ -40,7 +40,7 @@ that token name is either
 * `<AUD>_ID_TOKEN` where <AUD> is the audience string sanitized for environment variable names
   (uppercased and all characters outside of ascii letters and digits are replaced with "_")
 
-```
+```yaml
   id_tokens:
     MY_AUDIENCE_ID_TOKEN:
       aud: my-audience
