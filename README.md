@@ -1,5 +1,7 @@
 ## ci-id -- Ambient credentials detection for CI systems
 
+[![CI badge](https://github.com/jku/ci-id/actions/workflows/ci.yml/badge.svg)](https://github.com/jku/ci-id/actions/workflows/ci.yml)
+
 `ci-id` provides easy access to ambient OIDC credentials in CI systems.
 
 
