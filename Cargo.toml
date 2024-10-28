@@ -2,6 +2,10 @@
 name = "ci-id-bin"
 version = "0.1.0"
 edition = "2021"
+authors = ["Jussi Kukkonen <jkukkonen@google.com>"]
+description = "CLI app to detect ambient OIDC credentials on CI systems"
+repository = "https://github.com/jku/ci-id"
+license = "Apache-2.0"
 
 [[bin]]
 name = "ci-id"
