@@ -15,10 +15,13 @@ fn main() {
 
     match detect_credentials(cli.audience.as_deref()) {
         Ok(token) => print!("{}", token),
-        Err(CIIDError::EnvironmentNotDetected) => println!("No ambient OIDC tokens found"),
+        Err(CIIDError::EnvironmentNotDetected) => {
+            eprintln!("No ambient OIDC tokens found");
+            exit(1);
+        },
         Err(e) => {
             eprintln!("Error: {}", e);
-            exit(1);
-        }
+            exit(2);
+        },
     }
 }
