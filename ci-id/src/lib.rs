@@ -208,25 +208,30 @@ fn detect_circleci(audience: Option<&str>) -> Result<String> {
         return Err(CIIDError::EnvironmentNotDetected);
     };
     let payload;
-    let args = match audience {
-        None => vec!["run", "oidc", "get"],
+    match audience {
+        None => match env::var("CIRCLE_OIDC_TOKEN_V2") {
+            Ok(token) => Ok(token),
+            Err(_) => Err(CIIDError::EnvironmentError(
+                "CircleCI: CIRCLE_OIDC_TOKEN_V2 is not set.".into(),
+            )),
+        },
         Some(audience) => {
             // TODO Use serde here? the audience string could be anything...
             payload = format!("{{\"aud\":\"{}\"}}", audience);
-            vec!["run", "oidc", "get", "--claims", &payload]
+            let args = ["run", "oidc", "get", "--claims", &payload];
+            match Command::new("circleci").args(args).output() {
+                Ok(output) => match String::from_utf8(output.stdout) {
+                    Ok(token) => Ok(token),
+                    Err(_) => Err(CIIDError::EnvironmentError(
+                        "CircleCI; Failed to read token".into(),
+                    )),
+                },
+                Err(e) => Err(CIIDError::EnvironmentError(format!(
+                    "CircleCI: Call to circle CLI failed: {}",
+                    e
+                ))),
+            }
         }
-    };
-    match Command::new("circleci").args(args).output() {
-        Ok(output) => match String::from_utf8(output.stdout) {
-            Ok(token) => Ok(token),
-            Err(_) => Err(CIIDError::EnvironmentError(
-                "CircleCI; Failed to read token".into(),
-            )),
-        },
-        Err(e) => Err(CIIDError::EnvironmentError(format!(
-            "CircleCI: Call to circle CLI failed: {}",
-            e
-        ))),
     }
 }
 
@@ -322,6 +327,17 @@ mod tests {
             [("CIRCLECI", Some("1")), ("PATH", Some(""))],
             || {
                 assert!(matches!(
+                    detect_circleci("my-audience".into()).unwrap_err(),
+                    CIIDError::EnvironmentError(_)
+                ));
+            },
+        );
+
+        run_with_env(
+            // default audience uses specific env var
+            [("CIRCLECI", Some("1")), ("CIRCLE_OIDC_TOKEN_V2", None)],
+            || {
+                assert!(matches!(
                     detect_circleci(None).unwrap_err(),
                     CIIDError::EnvironmentError(_)
                 ));
@@ -336,19 +352,29 @@ mod tests {
         let dir_path = tmpdir.into_path();
         let path = dir_path.join("circleci");
         let mut f = File::create(&path).unwrap();
-        f.write_all(format!("#!/bin/sh\necho -n {}\n", TOKEN).as_bytes())
-            .unwrap();
+        let script = format!("#!/bin/sh\necho -n {}\n", TOKEN);
+        f.write_all(script.as_bytes()).unwrap();
         let mut permissions = f.metadata().unwrap().permissions();
         drop(f);
         permissions.set_mode(0o744);
         fs::set_permissions(path, permissions).unwrap();
 
-        // Make sure the fake executable is in PATH
+        // Make sure the fake executable is in PATH, then test non-default audience
         run_with_env(
             // empty the path so that this does not accidentally succeed on CircleCI
             [
                 ("CIRCLECI", Some("1")),
                 ("PATH", Some(dir_path.to_str().unwrap())),
+            ],
+            || {
+                assert_eq!(detect_circleci("my-audience".into()), Ok(TOKEN.into()));
+            },
+        );
+
+        run_with_env(
+            [
+                ("CIRCLECI", Some("1")),
+                ("CIRCLE_OIDC_TOKEN_V2", Some(TOKEN)),
             ],
             || {
                 assert_eq!(detect_circleci(None), Ok(TOKEN.into()));
@@ -459,12 +485,19 @@ mod tests {
 
     #[test]
     fn detect_credentials_no_environments() {
-        run_with_env([("GITLAB_CI", None), ("GITHUB_ACTIONS", None)], || {
-            assert_eq!(
-                detect_credentials(None),
-                Err(CIIDError::EnvironmentNotDetected)
-            );
-        });
+        run_with_env(
+            [
+                ("CIRCLECI", None),
+                ("GITLAB_CI", None),
+                ("GITHUB_ACTIONS", None),
+            ],
+            || {
+                assert_eq!(
+                    detect_credentials(None),
+                    Err(CIIDError::EnvironmentNotDetected)
+                );
+            },
+        );
     }
 
     #[test]
