@@ -18,10 +18,10 @@ fn main() {
         Err(CIIDError::EnvironmentNotDetected) => {
             eprintln!("No ambient OIDC tokens found");
             exit(1);
-        },
+        }
         Err(e) => {
             eprintln!("Error: {}", e);
             exit(2);
-        },
+        }
     }
 }

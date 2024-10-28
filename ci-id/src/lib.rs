@@ -46,7 +46,7 @@
 
 use regex::Regex;
 use serde::Deserialize;
-use std::{collections::HashMap, env, fmt};
+use std::{collections::HashMap, env, fmt, process::Command};
 pub type Result<T> = std::result::Result<T, CIIDError>;
 
 #[cfg(test)]
@@ -96,6 +96,7 @@ pub fn detect_credentials(audience: Option<&str>) -> Result<String> {
     for (name, detect) in [
         ("GitHub Actions", detect_github as DetectFn),
         ("GitLab Pipelines", detect_gitlab as DetectFn),
+        ("CircleCI", detect_circleci as DetectFn),
     ] {
         match detect(audience) {
             Ok(token) => {
@@ -198,6 +199,33 @@ fn detect_gitlab(audience: Option<&str>) -> Result<String> {
     }
 }
 
+fn detect_circleci(audience: Option<&str>) -> Result<String> {
+    if env::var("CIRCLECI").is_err() {
+        return Err(CIIDError::EnvironmentNotDetected);
+    };
+    let payload;
+    let args = match audience {
+        None => vec!["run", "oidc", "get"],
+        Some(audience) => {
+            // TODO Use serde here? the audience string could be anything...
+            payload = format!("{{\"aud\":\"{}\"}}", audience);
+            vec!["run", "oidc", "get", "--claims", &payload]
+        }
+    };
+    match Command::new("circleci").args(args).output() {
+        Ok(output) => match String::from_utf8(output.stdout) {
+            Ok(token) => Ok(token),
+            Err(_) => Err(CIIDError::EnvironmentError(
+                "CircleCI; Failed to read token".into(),
+            )),
+        },
+        Err(e) => Err(CIIDError::EnvironmentError(format!(
+            "CircleCI: Call to circle CLI failed: {}",
+            e
+        ))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -267,6 +295,33 @@ mod tests {
         f();
         drop(saved_env);
     }
+
+    #[test]
+    fn circle_not_detected() {
+        run_with_env([("CIRCLECI", None)], || {
+            assert_eq!(
+                detect_circleci(None),
+                Err(CIIDError::EnvironmentNotDetected)
+            );
+        });
+    }
+
+    #[test]
+    fn circleci_env_failure() {
+        run_with_env(
+            // empty the path so that this does not accidentally succeed on CircleCI
+            [("CIRCLECI", Some("1")), ("PATH", Some(""))],
+            || {
+                assert!(matches!(
+                    detect_circleci(None).unwrap_err(),
+                    CIIDError::EnvironmentError(_)
+                ));
+            },
+        );
+    }
+
+    // TODO This requires mocking the circleci binary
+    // fn circleci_success() { }
 
     #[test]
     fn github_not_detected() {
