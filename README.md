@@ -21,30 +21,12 @@ ci-id is based on [id](https://github.com/di/id), a similar Python project.
 
 ### Supported environments
 
-GitHub Actions and GitLab Pipelines are supported at the moment: more implementations are welcome.
+Currently supported environments are:
+* GitHub Actions
+* GitLab CI/CD
+* CircleCI
 
-#### GitHub Actions
-
-Workflow must be given the permission to use the workflow identity: 
-
-```yaml
-permissions:
-    id-token: write
-```
-
-#### GitLab Pipelines
-
-An ID token must be defined in the pipeline. The ID token name must be based on the audience so
-that token name is either
-* `ID_TOKEN` for default audience
-* `<AUD>_ID_TOKEN` where <AUD> is the audience string sanitized for environment variable names
-  (uppercased and all characters outside of ascii letters and digits are replaced with "_")
-
-```yaml
-  id_tokens:
-    MY_AUDIENCE_ID_TOKEN:
-      aud: my-audience
-```
+See documentation for details on what configuration each of these environments needs.
 
 ### License
 

@@ -38,6 +38,10 @@
 //! * `ID_TOKEN` for default audience
 //! * `<AUD>_ID_TOKEN` where `<AUD>` is the audience string sanitized for environment variable names
 //!   (uppercased and all characters outside of ascii letters and digits are replaced with "_")
+//!
+//! ## CircleCI
+//!
+//! No configuration is needed.
 
 // TODO
 // * is blocking an issue?
