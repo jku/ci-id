@@ -398,13 +398,12 @@ mod tests {
 
     #[test]
     fn detect_credentials_malformed_token() {
-        let token = "token value";
         // need to disable GitHub, otherwise we get a "false" positive on CI...
         run_with_env(
             [
                 ("GITHUB_ACTIONS", None),
                 ("GITLAB_CI", Some("1")),
-                ("ID_TOKEN", Some(token)),
+                ("ID_TOKEN", Some("token value")),
             ],
             || {
                 assert_eq!(detect_credentials(None), Err(CIIDError::MalformedToken));
