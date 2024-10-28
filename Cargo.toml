@@ -6,6 +6,7 @@ edition = "2021"
 [[bin]]
 name = "ci-id"
 path = "src/main.rs"
+doc = false
 
 [workspace]
 

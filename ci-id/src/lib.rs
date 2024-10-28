@@ -1,3 +1,44 @@
+//! `ci-id` provides easy access to ambient OIDC credentials in CI systems like
+//! GitHub Actions.
+//!
+//! ```
+//! match ci_id::detect_credentials(Some("my-audience")) {
+//!     Ok(token) => println!("{}", token),
+//!     Err(e) => eprintln!("{}", e)
+//! }
+//! ```
+//!
+//! # Environment specific setup
+//!
+//! Typically the CI environment needs to allow OIDC identity access.
+//!
+//! ## GitHub Actions
+//!
+//! Workflow must be given the [permission](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect#adding-permissions-settings)
+//! to use the workflow identity:
+//!
+//! ```yaml
+//! permissions:
+//!     id-token: write
+//! ```
+//!
+//! ## GitLab Pipelines
+//!
+//! An [ID token](https://docs.gitlab.com/ee/ci/secrets/id_token_authentication.html)
+//! must be defined in the pipeline:
+//!
+//! ```yaml
+//! id_tokens:
+//!     MY_AUDIENCE_ID_TOKEN:
+//!         aud: my-audience
+//! ```
+//!
+//! The ID token name must be based on the audience so
+//! that token name is either
+//! * `ID_TOKEN` for default audience
+//! * `<AUD>_ID_TOKEN` where `<AUD>` is the audience string sanitized for environment variable names
+//!   (uppercased and all characters outside of ascii letters and digits are replaced with "_")
+
 // TODO
 // * is blocking an issue?
 // * less dependencies?
@@ -14,8 +55,11 @@ extern crate lazy_static;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CIIDError {
+    /// No supported OIDC identity environment was detected
     EnvironmentNotDetected,
+    /// Environment was found but there was a problem with acquiring the token
     EnvironmentError(String),
+    /// Identity token was found but it does not look like JSON Web Token
     MalformedToken,
 }
 impl fmt::Display for CIIDError {
@@ -37,6 +81,17 @@ fn validate_token(token: String) -> Result<String> {
     }
 }
 
+/// Returns detected OIDC identity token.
+///
+/// The supported environments are probed in order, the identity token
+/// for the first found environment is returned.
+///
+/// ```
+/// match ci_id::detect_credentials(Some("my-audience")) {
+///     Ok(token) => println!("{}", token),
+///     Err(e) => eprintln!("{}", e)
+/// }
+/// ```
 pub fn detect_credentials(audience: Option<&str>) -> Result<String> {
     for (name, detect) in [
         ("GitHub Actions", detect_github as DetectFn),
@@ -72,7 +127,9 @@ fn detect_github(audience: Option<&str>) -> Result<String> {
 
     let Ok(token_token) = env::var("ACTIONS_ID_TOKEN_REQUEST_TOKEN") else {
         return Err(CIIDError::EnvironmentError(
-            "GitHub Actions: ACTIONS_ID_TOKEN_REQUEST_TOKEN is not set".into(),
+            "GitHub Actions: ACTIONS_ID_TOKEN_REQUEST_TOKEN is not set. This could \
+            imply that the job does not have 'id-token: write' permission"
+                .into(),
         ));
     };
     let Ok(token_url) = env::var("ACTIONS_ID_TOKEN_REQUEST_URL") else {
@@ -134,7 +191,8 @@ fn detect_gitlab(audience: Option<&str>) -> Result<String> {
     match env::var(&var_name) {
         Ok(token) => Ok(token),
         Err(_) => Err(CIIDError::EnvironmentError(format!(
-            "GitLab Pipelines: {} is not set",
+            "GitLab Pipelines: {} is not set. This could imply that the \
+            pipeline does not define an id token with that name",
             var_name
         ))),
     }
