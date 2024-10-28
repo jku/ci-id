@@ -11,6 +11,8 @@ jobs:
           command: cargo build
       - run:
           command: RUST_LOG=debug cargo run sigstore
+      - run:
+          command: RUST_LOG=debug cargo run
       - save_cache:
           key: cargo-{{ checksum "Cargo.lock" }}
           paths:

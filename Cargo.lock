@@ -150,6 +150,7 @@ dependencies = [
  "regex",
  "reqwest",
  "serde",
+ "tempfile",
 ]
 
 [[package]]

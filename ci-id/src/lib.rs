@@ -234,7 +234,12 @@ fn detect_circleci(audience: Option<&str>) -> Result<String> {
 mod tests {
     use super::*;
 
-    use std::sync::{Mutex, MutexGuard};
+    use std::{
+        fs::{self, File},
+        io::Write,
+        os::unix::fs::PermissionsExt,
+        sync::{Mutex, MutexGuard},
+    };
 
     const TOKEN: &str = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjMxNjA2OGMzM2ZhMjg2OTZhZmI5YzM5YWI2OTMxMjY1ZDk0Y2I3NTUifQ.eyJpc3MiOiJodHRwczovL29hdXRoMi5zaWdzdG9yZS5kZXYvYXV0aCIsInN1YiI6IkNnVXpNVGc0T1JJbWFIUjBjSE02SlRKR0pUSkdaMmwwYUhWaUxtTnZiU1V5Um14dloybHVKVEpHYjJGMWRHZyIsImF1ZCI6InNpZ3N0b3JlIiwiZXhwIjoxNzI5NTEyOTMwLCJpYXQiOjE3Mjk1MTI4NzAsIm5vbmNlIjoiNTI3NjM3Y2UtN2Q2MS00MDA5LThkM2EtNGNjZGM3OGJiZDg1IiwiYXRfaGFzaCI6IktmMUNPTXB5TVJDTkdzWWp1QXczclEiLCJlbWFpbCI6ImprdUBnb3RvLmZpIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZlZGVyYXRlZF9jbGFpbXMiOnsiY29ubmVjdG9yX2lkIjoiaHR0cHM6Ly9naXRodWIuY29tL2xvZ2luL29hdXRoIiwidXNlcl9pZCI6IjMxODg5In19.s27uZ3vpIzRS4eWdC3pM0FSsYkHNvScQoii_TcSRVZhtrcPAbA4D95Pw_R_UB-qRquMK1BHepKmeN1b1-CQ00jiFZgUOf9sDLC3Hy3oQejGJsYKb-7oeHs7amLz3SBzPwDwVd09e-7Yu1x9YV5k6aezqruLLt42C_kyOTsHeCIWWMEVmGp32105Jkj8YT5uEYXS-aOEvQFvAYsDfKgGuiJtGybUycVcJEfqyWI3cami7fkjU5PcCx8oFyP2E7YNRw4UeNWCTn7WFtL2onrgDm0oa2AqF3gtH4Q-9ByksVq3y6xQdoLj1ydzWcoCzsF43oZ6O6DkLmWk5fu3FxNyewg";
 
@@ -324,8 +329,32 @@ mod tests {
         );
     }
 
-    // TODO This requires mocking the circleci binary
-    // fn circleci_success() { }
+    #[test]
+    fn circleci_success() {
+        // create a fake 'circleci' executable
+        let tmpdir = tempfile::tempdir().unwrap();
+        let dir_path = tmpdir.into_path();
+        let path = dir_path.join("circleci");
+        let mut f = File::create(&path).unwrap();
+        f.write_all(format!("#!/bin/sh\necho -n {}\n", TOKEN).as_bytes())
+            .unwrap();
+        let mut permissions = f.metadata().unwrap().permissions();
+        drop(f);
+        permissions.set_mode(0o744);
+        fs::set_permissions(path, permissions).unwrap();
+
+        // Make sure the fake executable is in PATH
+        run_with_env(
+            // empty the path so that this does not accidentally succeed on CircleCI
+            [
+                ("CIRCLECI", Some("1")),
+                ("PATH", Some(dir_path.to_str().unwrap())),
+            ],
+            || {
+                assert_eq!(detect_circleci(None), Ok(TOKEN.into()));
+            },
+        );
+    }
 
     #[test]
     fn github_not_detected() {
