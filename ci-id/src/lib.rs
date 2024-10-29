@@ -46,7 +46,6 @@
 // TODO
 // * is blocking an issue?
 // * less dependencies?
-// * build library only with library deps -- maybe separate into two crates in a workspace?
 
 use regex::Regex;
 use serde::Deserialize;
