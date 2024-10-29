@@ -310,7 +310,7 @@ mod tests {
     }
 
     #[test]
-    fn circle_not_detected() {
+    fn circleci_not_detected() {
         run_with_env([("CIRCLECI", None)], || {
             assert_eq!(
                 detect_circleci(None),
