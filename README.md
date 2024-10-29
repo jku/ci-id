@@ -10,6 +10,8 @@ $ ci-id my-audience > token.txt
 
 See [ci-id](https://crates.io/crates/ci-id) for the underlying library.
 
+ci-id is based on [id](https://github.com/di/id), a similar Python project.
+
 ### Supported environments
 
 Currently supported environments are:
