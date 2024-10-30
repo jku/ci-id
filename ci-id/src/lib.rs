@@ -42,10 +42,10 @@
 //! ## CircleCI
 //!
 //! No configuration is needed.
-
-// TODO
-// * is blocking an issue?
-// * less dependencies?
+//!
+//! ## Buildkite
+//!
+//! No configuration is needed.
 
 use regex::Regex;
 use serde::Deserialize;

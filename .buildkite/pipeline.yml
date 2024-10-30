@@ -1,0 +1,15 @@
+steps:
+  - label: ":rust: Build"
+    key: "build"
+    command: "cargo build --bin ci-id"
+    plugins:
+      - docker#v5.9.0:
+          image: "rust:1.74.1"
+    artifact_paths:
+      - "target/debug/ci-id"
+  - label: "test"
+    depends_on: ["build"]
+    commands:
+      - "buildkite-agent artifact download target/debug/ci-id ."
+      - "chmod +x target/debug/ci-id"
+      - "target/debug/ci-id sigstore"
