@@ -13,3 +13,4 @@ steps:
       - "buildkite-agent artifact download target/debug/ci-id ."
       - "chmod +x target/debug/ci-id"
       - "target/debug/ci-id sigstore"
+      - "target/debug/ci-id"

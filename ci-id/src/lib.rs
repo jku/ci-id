@@ -334,6 +334,69 @@ mod tests {
     }
 
     #[test]
+    fn buildkite_not_detected() {
+        run_with_env([("BUILDKITE", None)], || {
+            assert_eq!(
+                detect_buildkite(None),
+                Err(CIIDError::EnvironmentNotDetected)
+            );
+        });
+    }
+
+    #[test]
+    fn buildkite_env_failure() {
+        run_with_env(
+            // empty the path so that this does not accidentally succeed on buildkite
+            [("BUILDKITE", Some("1")), ("PATH", Some(""))],
+            || {
+                assert!(matches!(
+                    detect_buildkite("my-audience".into()).unwrap_err(),
+                    CIIDError::EnvironmentError(_)
+                ));
+            },
+        );
+    }
+
+    #[test]
+    fn buildkite_success() {
+        // create a fake 'buildkite-agent' executable
+        let tmpdir = tempfile::tempdir().unwrap();
+        let dir_path = tmpdir.into_path();
+        let path = dir_path.join("buildkite-agent");
+        let mut f = File::create(&path).unwrap();
+        let script = format!("#!/bin/sh\necho -n {}\n", TOKEN);
+        f.write_all(script.as_bytes()).unwrap();
+        let mut permissions = f.metadata().unwrap().permissions();
+        drop(f);
+        permissions.set_mode(0o744);
+        fs::set_permissions(path, permissions).unwrap();
+
+        // TODO: actually make the fake binary check that args are correct?
+
+        // Make sure the fake executable is in PATH, then test non-default audience
+        run_with_env(
+            [
+                ("BUILDKITE", Some("1")),
+                ("PATH", Some(dir_path.to_str().unwrap())),
+            ],
+            || {
+                assert_eq!(detect_buildkite("my-audience".into()), Ok(TOKEN.into()));
+            },
+        );
+
+        // Make sure the fake executable is in PATH, then test default audience
+        run_with_env(
+            [
+                ("BUILDKITE", Some("1")),
+                ("PATH", Some(dir_path.to_str().unwrap())),
+            ],
+            || {
+                assert_eq!(detect_buildkite(None), Ok(TOKEN.into()));
+            },
+        );
+    }
+
+    #[test]
     fn circleci_not_detected() {
         run_with_env([("CIRCLECI", None)], || {
             assert_eq!(
@@ -384,7 +447,6 @@ mod tests {
 
         // Make sure the fake executable is in PATH, then test non-default audience
         run_with_env(
-            // empty the path so that this does not accidentally succeed on CircleCI
             [
                 ("CIRCLECI", Some("1")),
                 ("PATH", Some(dir_path.to_str().unwrap())),
