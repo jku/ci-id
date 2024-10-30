@@ -221,7 +221,7 @@ fn detect_circleci(audience: Option<&str>) -> Result<String> {
             let args = ["run", "oidc", "get", "--claims", &payload];
             match Command::new("circleci").args(args).output() {
                 Ok(output) => match String::from_utf8(output.stdout) {
-                    Ok(token) => Ok(token),
+                    Ok(token) => Ok(token.trim_end().to_string()),
                     Err(_) => Err(CIIDError::EnvironmentError(
                         "CircleCI; Failed to read token".into(),
                     )),
@@ -246,7 +246,7 @@ fn detect_buildkite(audience: Option<&str>) -> Result<String> {
     };
     match Command::new("buildkite-agent").args(args).output() {
         Ok(output) => match String::from_utf8(output.stdout) {
-            Ok(token) => Ok(token),
+            Ok(token) => Ok(token.trim_end().to_string()),
             Err(_) => Err(CIIDError::EnvironmentError(
                 "Buildkite; Failed to read token".into(),
             )),
