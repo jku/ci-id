@@ -100,6 +100,7 @@ pub fn detect_credentials(audience: Option<&str>) -> Result<String> {
         ("GitHub Actions", detect_github as DetectFn),
         ("GitLab Pipelines", detect_gitlab as DetectFn),
         ("CircleCI", detect_circleci as DetectFn),
+        ("Buildkite", detect_buildkite as DetectFn),
     ] {
         match detect(audience) {
             Ok(token) => {
@@ -231,6 +232,29 @@ fn detect_circleci(audience: Option<&str>) -> Result<String> {
                 ))),
             }
         }
+    }
+}
+
+fn detect_buildkite(audience: Option<&str>) -> Result<String> {
+    if env::var("BUILDKITE").is_err() {
+        return Err(CIIDError::EnvironmentNotDetected);
+    };
+
+    let args = match audience {
+        Some(audience) => vec!["oidc", "request-token", "--audience", audience],
+        None => vec!["oidc", "request-token"],
+    };
+    match Command::new("buildkite-agent").args(args).output() {
+        Ok(output) => match String::from_utf8(output.stdout) {
+            Ok(token) => Ok(token),
+            Err(_) => Err(CIIDError::EnvironmentError(
+                "Buildkite; Failed to read token".into(),
+            )),
+        },
+        Err(e) => Err(CIIDError::EnvironmentError(format!(
+            "Buildkite: Call to buildkite-agent failed: {}",
+            e
+        ))),
     }
 }
 
