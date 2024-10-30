@@ -24,6 +24,7 @@ Currently supported environments are:
 * GitHub Actions
 * GitLab CI/CD
 * CircleCI
+* Buildkite
 
 See [documentation](https://docs.rs/ci-id/latest/ci_id/) for details on what configuration each of these environments needs.
 
