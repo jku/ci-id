@@ -6,5 +6,6 @@ test:cargo:
       aud: sigstore
   script:
     - rustc --version && cargo --version  # Print version info for debugging
-    - cargo build
-    - RUST_LOG=debug cargo run sigstore
+    - cargo build --workspace
+    - RUST_LOG=debug cargo run -p ci-id-bin sigstore
+    - RUST_LOG=debug cargo run -p ci-id-bin

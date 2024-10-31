@@ -1,0 +1,18 @@
+[package]
+name = "ci-id-bin"
+version = "0.1.2"
+edition = "2021"
+authors = ["Jussi Kukkonen <jkukkonen@google.com>"]
+description = "CLI app to detect ambient OIDC credentials on CI systems"
+repository = "https://github.com/jku/ci-id"
+license = "Apache-2.0"
+
+[[bin]]
+name = "ci-id"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+clap = { version = "4.5.20", features = ["derive"] }
+env_logger = "0.11.5"
+ci-id = { path = "..", version = "0.1.2" }

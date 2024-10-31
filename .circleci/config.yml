@@ -8,11 +8,11 @@ jobs:
       - restore_cache:
           key: cargo-{{ checksum "Cargo.lock" }}
       - run:
-          command: cargo build
+          command: cargo build --workspace
       - run:
-          command: RUST_LOG=debug cargo run sigstore
+          command: RUST_LOG=debug cargo run -p ci-id-bin sigstore
       - run:
-          command: RUST_LOG=debug cargo run
+          command: RUST_LOG=debug cargo run -p ci-id-bin
       - save_cache:
           key: cargo-{{ checksum "Cargo.lock" }}
           paths:
