@@ -33,11 +33,9 @@
 //!         aud: my-audience
 //! ```
 //!
-//! The ID token name must be based on the audience so
-//! that token name is either
-//! * `ID_TOKEN` for default audience
-//! * `<AUD>_ID_TOKEN` where `<AUD>` is the audience string sanitized for environment variable names
-//!   (uppercased and all characters outside of ascii letters and digits are replaced with "_")
+//! The ID token name must be based on the audience so that token name is `<AUD>_ID_TOKEN` where
+//! `<AUD>` is the audience string sanitized for environment variable names (uppercased and all
+//! characters outside of ascii letters and digits are replaced with "_").
 //!
 //! ## CircleCI
 //!
@@ -177,7 +175,6 @@ fn detect_github(audience: Option<&str>) -> Result<String> {
 
 fn detect_gitlab(audience: Option<&str>) -> Result<String> {
     // gitlab tokens can be in any environment variable: we require the variable name to be
-    // * "ID_TOKEN" if no audience is argument is used or
     // * "<AUDIENCE>_ID_TOKEN" where <AUDIENCE> is the audience string.
 
     if env::var("GITLAB_CI").is_err() {
@@ -185,7 +182,9 @@ fn detect_gitlab(audience: Option<&str>) -> Result<String> {
     };
 
     let var_name = match audience {
-        None => "ID_TOKEN".into(),
+        None => {
+            return Err(CIIDError::EnvironmentError("GitLab: audience must be set".into()));
+        }
         Some(audience) => {
             let upper_audience = audience.to_uppercase();
             let re = Regex::new(r"[^A-Z0-9_]|^[^A-Z_]").unwrap();
@@ -531,8 +530,8 @@ mod tests {
 
     #[test]
     fn gitlab_env_failure() {
-        // Missing token variable for default audience
-        run_with_env([("GITLAB_CI", Some("1")), ("ID_TOKEN", None)], || {
+        // GitLab does not support default audience
+        run_with_env([("GITLAB_CI", Some("1"))], || {
             assert!(matches!(
                 detect_gitlab(None).unwrap_err(),
                 CIIDError::EnvironmentError(_)
@@ -554,13 +553,6 @@ mod tests {
     #[test]
     fn gitlab_success() {
         run_with_env(
-            [("GITLAB_CI", Some("1")), ("ID_TOKEN", Some(TOKEN))],
-            || {
-                assert_eq!(detect_gitlab(None), Ok(TOKEN.into()));
-            },
-        );
-
-        run_with_env(
             [("GITLAB_CI", Some("1")), ("MY_AUD_ID_TOKEN", Some(TOKEN))],
             || {
                 assert_eq!(detect_gitlab(Some("my-aud")), Ok(TOKEN.into()));
@@ -572,6 +564,7 @@ mod tests {
     fn detect_credentials_no_environments() {
         run_with_env(
             [
+                ("BUILDKITE", None),
                 ("CIRCLECI", None),
                 ("GITLAB_CI", None),
                 ("GITHUB_ACTIONS", None),
@@ -609,10 +602,10 @@ mod tests {
             [
                 ("GITHUB_ACTIONS", None),
                 ("GITLAB_CI", Some("1")),
-                ("ID_TOKEN", Some("token value")),
+                ("MY_AUD_ID_TOKEN", Some("token value")),
             ],
             || {
-                assert_eq!(detect_credentials(None), Err(CIIDError::MalformedToken));
+                assert_eq!(detect_credentials(Some("my-aud")), Err(CIIDError::MalformedToken));
             },
         );
     }
@@ -620,17 +613,6 @@ mod tests {
     #[test]
     fn detect_credentials_success() {
         // need to disable GitHub, otherwise we get a "false" positive on CI...
-        run_with_env(
-            [
-                ("GITHUB_ACTIONS", None),
-                ("GITLAB_CI", Some("1")),
-                ("ID_TOKEN", Some(TOKEN)),
-            ],
-            || {
-                assert_eq!(detect_credentials(None), Ok(TOKEN.into()));
-            },
-        );
-
         run_with_env(
             [
                 ("GITHUB_ACTIONS", None),
