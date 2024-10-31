@@ -183,7 +183,9 @@ fn detect_gitlab(audience: Option<&str>) -> Result<String> {
 
     let var_name = match audience {
         None => {
-            return Err(CIIDError::EnvironmentError("GitLab: audience must be set".into()));
+            return Err(CIIDError::EnvironmentError(
+                "GitLab: audience must be set".into(),
+            ));
         }
         Some(audience) => {
             let upper_audience = audience.to_uppercase();
@@ -605,7 +607,10 @@ mod tests {
                 ("MY_AUD_ID_TOKEN", Some("token value")),
             ],
             || {
-                assert_eq!(detect_credentials(Some("my-aud")), Err(CIIDError::MalformedToken));
+                assert_eq!(
+                    detect_credentials(Some("my-aud")),
+                    Err(CIIDError::MalformedToken)
+                );
             },
         );
     }
