@@ -2,6 +2,7 @@ image: "rust:latest"
 
 test:cargo:
   id_tokens:
+    ID_TOKEN:
     SIGSTORE_ID_TOKEN:
       aud: sigstore
   script:
