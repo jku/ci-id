@@ -1,6 +1,6 @@
 [package]
 name = "ci-id-bin"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 authors = ["Jussi Kukkonen <jkukkonen@google.com>"]
 description = "CLI app to detect ambient OIDC credentials on CI systems"
@@ -15,4 +15,4 @@ doc = false
 [dependencies]
 clap = { version = "4.5.21", features = ["derive"] }
 env_logger = "0.11.5"
-ci-id = { path = "..", version = "0.2.1" }
+ci-id = { path = "..", version = "0.3.0" }
