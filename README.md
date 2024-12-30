@@ -2,7 +2,7 @@
 
 [![CI badge](https://github.com/jku/ci-id/actions/workflows/ci.yml/badge.svg)](https://github.com/jku/ci-id/actions/workflows/ci.yml)
 
-`ci-id` provides easy access to ambient OIDC credentials in CI systems.
+`ci-id` is a small Rust library that provides easy access to ambient OIDC credentials in CI systems.
 
 ```rust
 use ci_id::{detect_credentials, CIIDError};
