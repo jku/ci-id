@@ -14,13 +14,13 @@ fn main() {
     let cli = Cli::parse();
 
     match detect_credentials(cli.audience.as_deref()) {
-        Ok(token) => print!("{}", token),
+        Ok(token) => print!("{token}"),
         Err(CIIDError::EnvironmentNotDetected) => {
             eprintln!("No ambient OIDC tokens found");
             exit(1);
         }
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
             exit(2);
         }
     }
