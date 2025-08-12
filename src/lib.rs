@@ -66,7 +66,7 @@ pub enum CIIDError {
 impl fmt::Display for CIIDError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CIIDError::EnvironmentError(s) => write!(f, "credential detection failed: {}", s),
+            CIIDError::EnvironmentError(s) => write!(f, "credential detection failed: {s}"),
             _ => write!(f, "credential detection failed"),
         }
     }
@@ -103,11 +103,11 @@ pub fn detect_credentials(audience: Option<&str>) -> Result<String> {
         match detect(audience) {
             Ok(token) => {
                 let token = validate_token(token)?;
-                log::debug!("{}: Token found", name);
+                log::debug!("{name}: Token found");
                 return Ok(token);
             }
             Err(CIIDError::EnvironmentNotDetected) => {
-                log::debug!("{}: Environment not detected", name);
+                log::debug!("{name}: Environment not detected");
             }
             Err(e) => return Err(e),
         }
@@ -151,7 +151,7 @@ fn detect_github(audience: Option<&str>) -> Result<String> {
         .get(token_url)
         .header(
             reqwest::header::AUTHORIZATION,
-            format!("bearer {}", token_token),
+            format!("bearer {token_token}"),
         )
         .query(&params)
         .send()
@@ -159,16 +159,14 @@ fn detect_github(audience: Option<&str>) -> Result<String> {
         Ok(response) => response,
         Err(e) => {
             return Err(CIIDError::EnvironmentError(format!(
-                "GitHub Actions: Token request failed: {}",
-                e
+                "GitHub Actions: Token request failed: {e}",
             )))
         }
     };
     match http_response.json::<GitHubTokenResponse>() {
         Ok(token_response) => Ok(token_response.value),
         Err(e) => Err(CIIDError::EnvironmentError(format!(
-            "GitHub Actions: Failed to parse token reponse: {}",
-            e
+            "GitHub Actions: Failed to parse token reponse: {e}",
         ))),
     }
 }
@@ -193,13 +191,12 @@ fn detect_gitlab(audience: Option<&str>) -> Result<String> {
             format!("{}_ID_TOKEN", re.replace_all(&upper_audience, "_"))
         }
     };
-    log::debug!("GitLab Pipelines: Looking for token in {}", var_name);
+    log::debug!("GitLab Pipelines: Looking for token in {var_name}");
     match env::var(&var_name) {
         Ok(token) => Ok(token),
         Err(_) => Err(CIIDError::EnvironmentError(format!(
-            "GitLab Pipelines: {} is not set. This could imply that the \
-            pipeline does not define an id token with that name",
-            var_name
+            "GitLab Pipelines: {var_name} is not set. This could imply \
+            that the pipeline does not define an id token with that name"
         ))),
     }
 }
@@ -218,7 +215,7 @@ fn detect_circleci(audience: Option<&str>) -> Result<String> {
         },
         Some(audience) => {
             // TODO Use serde here? the audience string could be anything...
-            payload = format!("{{\"aud\":\"{}\"}}", audience);
+            payload = format!("{{\"aud\":\"{audience}\"}}");
             let args = ["run", "oidc", "get", "--claims", &payload];
             match Command::new("circleci").args(args).output() {
                 Ok(output) => match String::from_utf8(output.stdout) {
@@ -228,8 +225,7 @@ fn detect_circleci(audience: Option<&str>) -> Result<String> {
                     )),
                 },
                 Err(e) => Err(CIIDError::EnvironmentError(format!(
-                    "CircleCI: Call to circle CLI failed: {}",
-                    e
+                    "CircleCI: Call to circle CLI failed: {e}",
                 ))),
             }
         }
@@ -253,8 +249,7 @@ fn detect_buildkite(audience: Option<&str>) -> Result<String> {
             )),
         },
         Err(e) => Err(CIIDError::EnvironmentError(format!(
-            "Buildkite: Call to buildkite-agent failed: {}",
-            e
+            "Buildkite: Call to buildkite-agent failed: {e}"
         ))),
     }
 }
