@@ -1,25 +1,15 @@
 version: 2
 updates:
   - package-ecosystem: cargo
-    # Lock file update
-    directory: "/"
-    schedule:
-      interval: weekly
-    versioning-strategy: lockfile-only
-    groups:
-      cargo-lock:
-        patterns:
-          - "*"
-
-  - package-ecosystem: cargo
-    # Update explicit dependencies in Cargo.toml
     directory: "/"
     schedule:
       interval: weekly
     groups:
-      cargo-toml:
+      cargo:
         patterns:
           - "*"
+    allow:
+      - dependency-type: "all"
 
   - package-ecosystem: github-actions
     directory: /
