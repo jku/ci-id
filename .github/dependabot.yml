@@ -1,11 +1,23 @@
 version: 2
 updates:
   - package-ecosystem: cargo
+    # Lock file update
+    directory: "/"
+    schedule:
+      interval: weekly
+    versioning-strategy: lockfile-only
+    groups:
+      cargo-lock:
+        patterns:
+          - "*"
+
+  - package-ecosystem: cargo
+    # Update explicit dependencies in Cargo.toml
     directory: "/"
     schedule:
       interval: weekly
     groups:
-      cargo:
+      cargo-toml:
         patterns:
           - "*"
 
